@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include "cJSON.h"
+
+long decode_value(const char *value, int base) {
+    return strtol(value, NULL, base);
+}
+
+double lagrange_interpolation(int x[], long y[], int k) {
+    double secret = 0;
+
+    for (int i = 0; i < k; i++) {
+        double term = y[i];
+
+        for (int j = 0; j < k; j++) {
+            if (i != j) {
+                term *= (0 - x[j]) / (double)(x[i] - x[j]);
+            }
+        }
+
+        secret += term;
+    }
+
+    return secret;
+}
+
+void process_test_case(const char *json_string, int test_case_number) {
+    // Parse JSON
+    cJSON *json = cJSON_Parse(json_string);
+    if (json == NULL) {
+        printf("Error parsing JSON for test case %d\n", test_case_number);
+        return;
+    }
+
+    // Get the keys 'n' and 'k'
+    cJSON *keys = cJSON_GetObjectItemCaseSensitive(json, "keys");
+    int n = cJSON_GetObjectItemCaseSensitive(keys, "n")->valueint;
+    int k = cJSON_GetObjectItemCaseSensitive(keys, "k")->valueint;
+
+    // Arrays to store the decoded x and y values
+    int x[k];
+    long y[k];
+    int count = 0;
+
+    // Iterate through the JSON to get the (x, y) points
+    cJSON *point;
+    cJSON_ArrayForEach(point, json) {
+        if (strcmp(point->string, "keys") != 0) {
+            int base = atoi(cJSON_GetObjectItemCaseSensitive(point, "base")->valuestring);
+            const char *value_str = cJSON_GetObjectItemCaseSensitive(point, "value")->valuestring;
+            int x_value = atoi(point->string);  // x is the key
+            long y_value = decode_value(value_str, base);  // Decode the y value
+            x[count] = x_value;
+            y[count] = y_value;
+            count++;
+            if (count == k) break;  // Only need the first k points
+        }
+    }
+
+    // Perform Lagrange interpolation to solve for the constant 'c'
+    double secret = lagrange_interpolation(x, y, k);
+    printf("The secret constant (c) for Test Case %d is: %.2f\n", test_case_number, secret);
+
+    // Free memory
+    cJSON_Delete(json);
+}
+
+int main() {
+    const char *json_string1 = "{ \"keys\": { \"n\": 4, \"k\": 3 }, \"1\": { \"base\": \"10\", \"value\": \"4\" }, \"2\": { \"base\": \"2\", \"value\": \"111\" }, \"3\": { \"base\": \"10\", \"value\": \"12\" }, \"6\": { \"base\": \"4\", \"value\": \"213\" }}";
+    process_test_case(json_string1, 1);
+
+    const char *json_string2 = "{ \"keys\": { \"n\": 9, \"k\": 6 }, \"1\": { \"base\": \"10\", \"value\": \"28735619723837\" }, \"2\": { \"base\": \"16\", \"value\": \"1A228867F0CA\" }, \"3\": { \"base\": \"12\", \"value\": \"32811A4AA0B7B\" }, \"4\": { \"base\": \"11\", \"value\": \"917978721331A\" }, \"5\": { \"base\": \"16\", \"value\": \"1A22886782E1\" }, \"6\": { \"base\": \"10\", \"value\": \"28735619654702\" }, \"7\": { \"base\": \"14\", \"value\": \"71AB5070CC4B\" }, \"8\": { \"base\": \"9\", \"value\": \"122662581541670\" }, \"9\": { \"base\": \"8\", \"value\": \"642121030037605\" }}";
+    process_test_case(json_string2, 2);
+
+    return 0;
+}
