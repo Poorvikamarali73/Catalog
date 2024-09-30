@@ -1,78 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
-#include "cJSON.h"
+#include <math.h>
 
-long decode_value(const char *value, int base) {
-    return strtol(value, NULL, base);
+long long decodeY(char *value, int base) {
+    return strtoll(value, NULL, base);
 }
 
-double lagrange_interpolation(int x[], long y[], int k) {
-    double secret = 0;
-
+long long lagrangeInterpolation(int x[], long long y[], int k) {
+    long long result = 0;
+    
     for (int i = 0; i < k; i++) {
-        double term = y[i];
-
+        long long term = y[i];
+        
         for (int j = 0; j < k; j++) {
             if (i != j) {
-                term *= (0 - x[j]) / (double)(x[i] - x[j]);
+                term *= (-x[j]);
+                term /= (x[i] - x[j]);
             }
         }
-
-        secret += term;
+        
+        result += term;
     }
-
-    return secret;
+    
+    return result;
 }
 
-void process_test_case(const char *json_string, int test_case_number) {
-    // Parse JSON
-    cJSON *json = cJSON_Parse(json_string);
-    if (json == NULL) {
-        printf("Error parsing JSON for test case %d\n", test_case_number);
-        return;
-    }
-
-    // Get the keys 'n' and 'k'
-    cJSON *keys = cJSON_GetObjectItemCaseSensitive(json, "keys");
-    int n = cJSON_GetObjectItemCaseSensitive(keys, "n")->valueint;
-    int k = cJSON_GetObjectItemCaseSensitive(keys, "k")->valueint;
-
-    // Arrays to store the decoded x and y values
-    int x[k];
-    long y[k];
-    int count = 0;
-
-    // Iterate through the JSON to get the (x, y) points
-    cJSON *point;
-    cJSON_ArrayForEach(point, json) {
-        if (strcmp(point->string, "keys") != 0) {
-            int base = atoi(cJSON_GetObjectItemCaseSensitive(point, "base")->valuestring);
-            const char *value_str = cJSON_GetObjectItemCaseSensitive(point, "value")->valuestring;
-            int x_value = atoi(point->string);  // x is the key
-            long y_value = decode_value(value_str, base);  // Decode the y value
-            x[count] = x_value;
-            y[count] = y_value;
-            count++;
-            if (count == k) break;  // Only need the first k points
-        }
-    }
-
-    // Perform Lagrange interpolation to solve for the constant 'c'
-    double secret = lagrange_interpolation(x, y, k);
-    printf("The secret constant (c) for Test Case %d is: %.2f\n", test_case_number, secret);
-
-    // Free memory
-    cJSON_Delete(json);
+int isPointValid(int x[], long long y[], int k, int testX, long long testY) {
+    long long interpolatedY = lagrangeInterpolation(x, y, k);
+    return (interpolatedY == testY);
 }
 
 int main() {
-    const char *json_string1 = "{ \"keys\": { \"n\": 4, \"k\": 3 }, \"1\": { \"base\": \"10\", \"value\": \"4\" }, \"2\": { \"base\": \"2\", \"value\": \"111\" }, \"3\": { \"base\": \"10\", \"value\": \"12\" }, \"6\": { \"base\": \"4\", \"value\": \"213\" }}";
-    process_test_case(json_string1, 1);
+    int x1[] = {1, 2, 3, 6};
+    char *yEnc1[] = {"4", "111", "12", "213"};
+    int base1[] = {10, 2, 10, 4};
+    int k1 = 3;
+    
+    long long y1[4];
+    for (int i = 0; i < 4; i++) {
+        y1[i] = decodeY(yEnc1[i], base1[i]);
+    }
+    
+    long long secret1 = lagrangeInterpolation(x1, y1, k1);
+    printf("Output for testcase 1: %lld\n", secret1);
 
-    const char *json_string2 = "{ \"keys\": { \"n\": 9, \"k\": 6 }, \"1\": { \"base\": \"10\", \"value\": \"28735619723837\" }, \"2\": { \"base\": \"16\", \"value\": \"1A228867F0CA\" }, \"3\": { \"base\": \"12\", \"value\": \"32811A4AA0B7B\" }, \"4\": { \"base\": \"11\", \"value\": \"917978721331A\" }, \"5\": { \"base\": \"16\", \"value\": \"1A22886782E1\" }, \"6\": { \"base\": \"10\", \"value\": \"28735619654702\" }, \"7\": { \"base\": \"14\", \"value\": \"71AB5070CC4B\" }, \"8\": { \"base\": \"9\", \"value\": \"122662581541670\" }, \"9\": { \"base\": \"8\", \"value\": \"642121030037605\" }}";
-    process_test_case(json_string2, 2);
-
+    int x2[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    char *yEnc2[] = {
+        "28735619723837", "1A228867F0CA", "32811A4AA0B7B", "917978721331A",
+        "1A22886782E1", "28735619654702", "71AB5070CC4B", "122662581541670", "642121030037605"
+    };
+    int base2[] = {10, 16, 12, 11, 16, 10, 14, 9, 8};
+    int k2 = 6;
+    
+    long long y2[9];
+    for (int i = 0; i < 9; i++) {
+        y2[i] = decodeY(yEnc2[i], base2[i]);
+    }
+    
+    long long secret2 = lagrangeInterpolation(x2, y2, k2);
+    printf("Output for testcase 2: %lld\n", secret2);
+ 
+    printf("Wrong points in testcase 2 in (x, y) format:\n");
+    for (int i = 0; i < 9; i++) {
+        if (!isPointValid(x2, y2, k2, x2[i], y2[i])) {
+            printf("(%d, %lld)\n", x2[i], y2[i]);
+        }
+    }
+    
     return 0;
 }
